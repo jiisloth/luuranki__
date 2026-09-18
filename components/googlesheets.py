@@ -1,10 +1,14 @@
+import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 
 class Gsheets:
-    def __init__(self, secret_path):
-        self.client = self._connect(secret_path)
+    def __init__(self):
+        if not os.path.isfile("secret.json"):
+            print("secret.json is missing!")
+            return
+        self.client = self._connect("secret.json")
 
     def _connect(self, secret_path):
         scope = ['https://spreadsheets.google.com/feeds',
@@ -18,7 +22,7 @@ class Gsheets:
         result = sheet.worksheet(tab).get(range)
         return result
 
-    def add_new_line(self, content, current_hole, sender):
+    def add_new_minigolf_line(self, content, current_hole, sender):
         sheet = self.client.open("Daily Minigolf Challenge").worksheet("SubmitScore")
         res = sheet.get("D2:G1000")
         for r in range(len(res)):

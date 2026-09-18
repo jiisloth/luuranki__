@@ -1,4 +1,4 @@
 config.ini
-googleSheets/secret.json
+secret.json
 .idea/*
 __pycache__
