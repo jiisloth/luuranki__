@@ -2,7 +2,12 @@ import asyncio
 import json
 
 
-async def create_role_check_loop(bot):
+local_tz = "Europe/Helsinki"
+
+
+async def create_role_check_loop(bot, loc_tz):
+    global local_tz
+    local_tz = loc_tz
     while True:
         with open('data/rolemessage.json') as json_data:
             rolemsgs = json.load(json_data)

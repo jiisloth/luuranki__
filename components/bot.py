@@ -10,7 +10,11 @@ from components.minigolf import utc_to_local, get_score_message
 from components.roleChecker import add_role_checker_entry
 
 
-def init_bot(cfg, gsheets, grequests):
+local_tz = "Europe/Helsinki"
+
+def init_bot(cfg, gsheets, grequests, loc_tz):
+    global local_tz
+    local_tz = loc_tz
     intents = discord.Intents.default()
     intents.message_content = True
     intents.members = True

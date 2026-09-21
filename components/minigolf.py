@@ -4,6 +4,9 @@ from datetime import datetime, timezone, time, timedelta
 import pytz
 
 
+local_tz = "Europe/Helsinki"
+
+
 def get_settings(gsheets):
     data = gsheets.fetchfromsheets("Daily Minigolf Challenge", "Settings")
     settings = {}
@@ -40,9 +43,9 @@ def get_settings(gsheets):
 
 
 
-async def create_minigolf_loop(bot, gsheets):
+async def create_minigolf_loop(bot, gsheets, loc_tz):
     global local_tz
-
+    local_tz = loc_tz
     settings_parsed, settings, raw_settings = get_settings(gsheets)
     if not settings_parsed:
         print("raw settings:")
@@ -118,7 +121,6 @@ async def get_score_message(msg):
     return None
 
 def utc_to_local(utc_dt):
-    global local_tz
     return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=pytz.timezone(local_tz))
 
 def current_time_in_tz():

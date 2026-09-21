@@ -65,9 +65,9 @@ async def main():
         local_tz = config['GLOBAL']['timezone']
 
     gsheets = gs.Gsheets()
-    bot = init_bot(config, gsheets, grequests)
-    asyncio.create_task(create_minigolf_loop(bot, gsheets))
-    asyncio.create_task(create_role_check_loop(bot))
+    bot = init_bot(config, gsheets, grequests, local_tz)
+    asyncio.create_task(create_minigolf_loop(bot, gsheets, local_tz))
+    asyncio.create_task(create_role_check_loop(bot, local_tz))
     await bot.start(config['BOT']['DISCORD_BOT_TOKEN'])
 
 
