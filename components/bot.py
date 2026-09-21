@@ -105,28 +105,28 @@ class Bot(discord.Client):
                     hole_arg = -1
                     if len(args) > 3 and args[3].is_digit():
                         hole_arg = int(args[3])
-                        ttc = self.gsheets.fetchfromsheets("Daily Minigolf Challenge", "DiscordThreadCopyPasta", "ThreadTitleContent")
-                        if len(ttc) == 2:
-                            title = ttc[0][0]
-                            content = ttc[1][0]
-                            hole = title.split(" ")[0]
-                            if len(hole) > 1 and hole[1:].is_digit():
-                                hole = int(hole[1:])
-                                if hole_arg > 0:
-                                    if hole_arg == hole and self.current_hole != hole:
-                                        message.reply(f'Mää luulin että pitäs olla reikä {self.current_hole} mut sanoit että ois {hole_arg} ja sheetistä löyty reikä {hole}... Korjaan tilanteen...')
-                                        self.current_hole = hole
-                                    elif hole_arg == self.current_hole and hole != hole_arg:
-                                        message.reply(f'Sheetistä tullee väärää reikää :(')
-                                elif self.current_hole != hole:
-                                    message.reply(f'No tota.. Sheetistä tulee reikä #{hole} ja mun mielestä pitäs olla #{self.current_hole}')
-                                if self.current_hole == hole and (hole_arg == -1 or hole_arg == hole):
-                                    success, created = await self.make_new_thread(title, content)
-                                    if success:
-                                        if not created:
-                                            message.reply(f'No eiks se oo tää: {self.current_thread.jump_url} ?')
-                                        else:
-                                            message.reply(f'💀')
+                    ttc = self.gsheets.fetchfromsheets("Daily Minigolf Challenge", "DiscordThreadCopyPasta", "ThreadTitleContent")
+                    if len(ttc) == 2:
+                        title = ttc[0][0]
+                        content = ttc[1][0]
+                        hole = title.split(" ")[0]
+                        if len(hole) > 1 and hole[1:].is_digit():
+                            hole = int(hole[1:])
+                            if hole_arg > 0:
+                                if hole_arg == hole and self.current_hole != hole:
+                                    message.reply(f'Mää luulin että pitäs olla reikä {self.current_hole} mut sanoit että ois {hole_arg} ja sheetistä löyty reikä {hole}... Korjaan tilanteen...')
+                                    self.current_hole = hole
+                                elif hole_arg == self.current_hole and hole != hole_arg:
+                                    message.reply(f'Sheetistä tullee väärää reikää :(')
+                            elif self.current_hole != hole:
+                                message.reply(f'No tota.. Sheetistä tulee reikä #{hole} ja mun mielestä pitäs olla #{self.current_hole}')
+                            if self.current_hole == hole and (hole_arg == -1 or hole_arg == hole):
+                                success, created = await self.make_new_thread(title, content)
+                                if success:
+                                    if not created:
+                                        message.reply(f'No eiks se oo tää: {self.current_thread.jump_url} ?')
+                                    else:
+                                        message.reply(f'💀')
 
 
         if cmd == "pelikanava":
@@ -139,11 +139,14 @@ class Bot(discord.Client):
         if cmd == "ilmoitustaulu":
             if len(args) > 2 and (args[1].lower() == "lisää" or args[1].lower() == "poista"):
                 txt_id = args[2]
+                if txt_id.startswith("-"):
+                    await message.reply("Unohditko lisätä ID:n?")
+                    return True
                 if args[1] == "lisää":
                     adding = None
                     title = []
                     content = []
-                    for arg in args[2:]:
+                    for arg in args[3:]:
                         if arg.lower() == "-o":
                             adding = "o"
                         elif arg.lower() == "-s":
@@ -164,7 +167,7 @@ class Bot(discord.Client):
                     await message.reply("Lissää ny ees jottai sisältöö. -s aaasdsad")
                     return False
                 if args[1] == "poista":
-                    response = await self.delete_on_api("/edit-content/"+txt_id)
+                    response = await self.delete_on_api("/edit-content/"+txt_id, {})
                     if response["success"]:
                         await message.reply("Poistettu!")
                     else:
@@ -181,14 +184,14 @@ class Bot(discord.Client):
             if len(args) > 1:
                 offset_arg = args[1]
                 if len(args) > 2:
-                    if args[2] == "h" or args[2] == "d" or args[2] == "t" or args[2] == "p":
+                    if args[2] == "h" or args[2] == "d" or args[2] == "t" or args[2] == "p" or args[2] == "pv":
                         offset_arg += args[2]
                 if is_float(offset_arg):
                     offset = float(offset_arg)*24
                 if offset_arg.endswith("t") or offset_arg.endswith("h"):
                     if is_float(offset_arg[:-1]):
                         offset = float(offset_arg[:-1])
-                if offset_arg.endswith("d") or offset_arg.endswith("p"):
+                if offset_arg.endswith("d") or offset_arg.endswith("p") or offset_arg.endswith("pv"):
                     if is_float(offset_arg[:-1]):
                         offset = float(offset_arg[:-1])*24
             stuck_time = datetime.datetime.now() - datetime.timedelta(hours=offset)
@@ -242,11 +245,25 @@ class Bot(discord.Client):
         responses = self.request_ass.map(requests)
         for response in responses:
             if response:
-                try:
-                    data = response.json()
-                    return {"success": True, "content": data}
-                except json.JSONDecodeError:
-                    return {"success": False, "content": response.text}
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        return {"success": True, "content": data}
+                    except json.JSONDecodeError:
+                        return {"success": False, "content": response.text}
+                else:
+                    try:
+                        data = response.json()
+                        content = ["ERROR!", str(response.status_code)]
+                        if "error" in data:
+                            content.append(data["error"])
+                        if "message" in data:
+                            content.append(data["message"])
+
+                        return {"success": True, "content": " ".join(content)}
+                    except json.JSONDecodeError:
+                        return {"success": False, "content": "ERROR! " + str(response.status_code) + " " + response.text}
+
 
         return {"success": False, "content": "Request failed :("}
 
