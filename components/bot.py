@@ -203,9 +203,31 @@ class Bot(discord.Client):
             return True
         if cmd == "kuva":
             if len(args) > 1:
-                if args[1].startswith("https://"):
-                    img_url = quote(args[1], safe='/:?&')
-                    print(img_url)
+                if args[1] == "lisää":
+                    img_url = None
+                    for ach in message.attachments:
+                        print(ach.content_type.url)
+                        if ach.content_type.startswith("image"):
+                            img_url = ach.url
+                            break
+                    if not img_url:
+                        for emb in message.embeds:
+                            if emb.image and emb.image.proxy_url:
+                                img_url = emb.image.proxy_url
+                            elif emb.image and emb.image.url:
+                                img_url = emb.image.url
+                            elif emb.thumbnail and emb.thumbnail.proxy_url:
+                                img_url = emb.thumbnail.proxy_url
+                            elif emb.thumbnail and emb.thumbnail.url:
+                                img_url = emb.thumbnail.url
+                            elif emb.type == "image" and emb.url:
+                                img_url = emb.url
+                            if img_url:
+                                break
+                    if not img_url:
+                        await message.reply("Kilikoli. En löytäny tuosta mittää lisättävää :(")
+                        return True
+                    img_url = quote(img_url, safe='/:?&')
                     response = await self.post_on_api("/edit-image", {"url": img_url, "author": message.author.display_name})
                     if response["success"]:
                         await message.reply("Kuva lisätty.. ehkä.")
@@ -215,9 +237,10 @@ class Bot(discord.Client):
 
                 elif args[1] == "poista":
                     if len(args) > 2 and args[2].isdigit():
-                        response = await self.delete_on_api("/edit-image/" + args[2])
+                        print("poistetaan..")
+                        response = await self.delete_on_api("/edit-image/" + args[2], {})
                         if response["success"]:
-                            await message.reply("Kuva lisätty.. ehkä.")
+                            await message.reply("Kuva poistettu... ehkä.")
                         else:
                             await message.reply("Ei toimi... " + response["content"])
                         return True
