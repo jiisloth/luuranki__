@@ -78,7 +78,7 @@ async def create_minigolf_loop(bot, gsheets):
                     next_hole += timedelta(days=1)
                     current_hole += 1
                     if now < next_hole:
-                        ttc = gsheets.fetchfromsheets("Daily Minigolf Challenge", "DiscordThreadCopyPasta", "ThreadTitleContent")
+                        ttc = gsheets.fetchfromsheets("Daily Minigolf Challenge", "Outputs", "ThreadTitleContent")
                         if len(ttc) == 2:
                             bot.current_hole = current_hole
                             await bot.make_new_thread(ttc[0][0], ttc[1][0])
