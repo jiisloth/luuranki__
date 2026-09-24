@@ -1,4 +1,7 @@
+import datetime
 import os
+from xmlrpc.client import DateTime
+
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -30,4 +33,11 @@ class Gsheets:
             if str(row[0]) == str(current_hole) and sender == row[3]:
                 return False
         sheet.update_cell(len(res)+2, 2, content)
+        self.set_update_value("Töimisto Visual information system TeleVision", "DataMinigolf", 1, 4)
+        return True
+
+
+    def set_update_value(self, sheet, tab, row, col):
+        sheet = self.client.open(sheet).worksheet(tab)
+        sheet.update_cell(row, col, str(datetime.datetime.now()))
         return True

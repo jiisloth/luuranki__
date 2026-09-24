@@ -81,6 +81,7 @@ async def create_minigolf_loop(bot, gsheets, loc_tz):
                     next_hole += timedelta(days=1)
                     current_hole += 1
                     if now < next_hole:
+                        gsheets.set_update_value("Daily Minigolf Challenge", "Outputs", 3, 9)
                         ttc = gsheets.fetchfromsheets("Daily Minigolf Challenge", "Outputs", "ThreadTitleContent")
                         if len(ttc) == 2:
                             bot.current_hole = current_hole

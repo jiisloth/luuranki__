@@ -206,7 +206,6 @@ class Bot(discord.Client):
                 if args[1] == "lisää":
                     img_url = None
                     for ach in message.attachments:
-                        print(ach.content_type.url)
                         if ach.content_type.startswith("image"):
                             img_url = ach.url
                             break
@@ -227,7 +226,7 @@ class Bot(discord.Client):
                     if not img_url:
                         await message.reply("Kilikoli. En löytäny tuosta mittää lisättävää :(")
                         return True
-                    img_url = quote(img_url, safe='/:?&')
+                    img_url = quote(img_url, safe='/:?&=')
                     response = await self.post_on_api("/edit-image", {"url": img_url, "author": message.author.display_name})
                     if response["success"]:
                         await message.reply("Kuva lisätty.. ehkä.")
