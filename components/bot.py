@@ -4,10 +4,10 @@ import asyncio
 import datetime
 import random
 import discord
+import os.path
 
 
 from components.minigolf import utc_to_local, get_score_message
-from components.roleChecker import add_role_checker_entry
 
 
 local_tz = "Europe/Helsinki"
@@ -38,6 +38,7 @@ class Bot(discord.Client):
     current_hole = -1
     is_ready = False
     request_ass = None
+    nicks = {}
 
     role_messages = {}
 
@@ -50,11 +51,13 @@ class Bot(discord.Client):
         for a in range(len(admins)):
             self.super_admin.append(int(admins[a]))
         self.pending_channel_ids[config["BOT"]['GAMING_CHANNEL_ID']] = "game_channel"
+        self.load_nicks()
 
 
     async def on_ready(self):
         print(f'Logged on as {self.user}!')
         await self.get_channel_ids()
+        await self.load_role_messages()
         self.is_ready = True
 
     async def get_channel_ids(self):
@@ -88,19 +91,166 @@ class Bot(discord.Client):
         if self.current_thread and message.channel.id == self.current_thread.id:
             await self.check_if_score_message(message)
 
+    async def on_raw_reaction_add(self, reaction):
+        msgs = await self.get_role_message_or_none(reaction.message_id)
+        if msgs:
+            emoji = str(reaction.emoji)
+            for rm in msgs:
+                if rm["emoji"] == emoji:
+                    msg = rm["msg"]
+                    user = msg.guild.get_member(reaction.user_id)
+                    role = msg.guild.get_role(rm["role"])
+                    if user and role:
+                        if not user.get_role(role.id):
+                            await user.add_roles(role)
+
+    async def on_raw_reaction_remove(self, reaction):
+        msgs = await self.get_role_message_or_none(reaction.message_id)
+        if msgs:
+            emoji = str(reaction.emoji)
+            for rm in msgs:
+                if rm["emoji"] == emoji:
+                    msg = rm["msg"]
+                    user = msg.guild.get_member(reaction.user_id)
+                    role = msg.guild.get_role(rm["role"])
+                    if user and role:
+                        if user.get_role(role.id):
+                            await user.remove_roles(role)
+
+
+    async def get_role_message_or_none(self, m_id):
+        if m_id in self.role_messages:
+            return self.role_messages[m_id]
+        return None
+
+    async def add_role_message_cache(self, msg, role, emoji, channel_id):
+        if not msg.id in self.role_messages:
+            self.role_messages[msg.id] = []
+        self.role_messages[msg.id].append({
+            "msg": msg,
+            "role": role,
+            "emoji": emoji,
+            "channel_id": channel_id
+        })
+
+    async def remove_role_message(self, remove_role, msg, role_s, emoji, channel_id):
+        found = await self.remove_role_message_from_cache(msg.id, role_s, emoji, channel_id)
+        await self.remove_role_checker_entry(role_s, emoji, msg.id, channel_id)
+        if found and remove_role:
+            role = msg.guild.get_role(role_s)
+            if role:
+                for mem in role.members:
+                    await mem.remove_roles(role)
+
+    async def remove_role_message_from_cache(self, m_id, role_s, emoji, channel_id):
+        if m_id in self.role_messages:
+            for rm in self.role_messages[m_id]:
+                if rm["channel_id"] == channel_id and rm["emoji"] == emoji and rm["role"] == role_s:
+                    self.role_messages[m_id].remove(rm)
+                    return True
+        return False
+
+    async def check_bot_admin(self, user, guild):
+        ok = await self.check_for_role(user, guild, "luu_admin")
+        return ok
+
+    async def check_bot_mod(self, user, guild):
+        ok = await self.check_for_role(user, guild, "luu_mod")
+        return ok
+
+
+    async def get_role_with_str(self, guild, role_s):
+        for role in guild.roles:
+            if role.name == role_s:
+                return role
+        return None
+
+    async def check_for_role(self, user, guild, role_s):
+        role = await self.get_role_with_str(guild, role_s)
+        if role:
+            if user.get_role(role.id):
+                return True
+            return False
+        print("No such role in guild: ", role_s)
+        return False
+
+    async def get_role_from_mention(self, guild, mention):
+        for role in guild.roles:
+            if role.mention == mention:
+                return role
+        return None
+
+    async def get_message_from_channel_with_id(self, c_id, m_id):
+        channel = self.get_channel(c_id)
+        try:
+            msg = await channel.fetch_message(m_id)
+            return msg, False
+        except discord.NotFound:
+            return None, True
+        except discord.Forbidden, discord.HTTPException:
+            return None, False
+
     async def handle_command(self, message):
         args = message.content.split(" ")
         cmd = args[0][1:].lower()
         if cmd == "roolita":
-            if message.author.id in self.super_admin:
-                if message.reference and len(args) > 2:
-                    role = args[1]
-                    emoji = args[2]
-                    msg = message.reference
-                    await add_role_checker_entry(role, emoji, msg.id, msg.channel.id)
-                    self.role_messages[msg.id] = msg
-        if cmd == "haloo":
+            if await self.check_bot_mod(message.author, message.guild):
+                if message.reference and message.reference.message_id and len(args) > 2:
+                    role = await self.get_role_from_mention(message.guild, args[1])
+                    emoji = args[2].strip()
+                    if not role:
+                        role = await self.get_role_from_mention(message.guild, args[2])
+                        emoji = args[1].strip()
+                    if not role:
+                        await message.reply(f'Ei oo tommosta roolii..')
+                    msg, e = await self.get_message_from_channel_with_id(message.channel.id, message.reference.message_id)
+                    if not msg:
+                        await message.reply(f'Done goofed..')
+                        return False
+                    await msg.add_reaction(emoji)
+                    await self.add_role_checker_entry(role.id, emoji, msg.id, msg.channel.id)
+                    await self.add_role_message_cache(msg, role.id, emoji, msg.channel.id)
+                    await message.add_reaction("✅")
+                    await asyncio.sleep(5)
+                    await message.delete()
+                    return True
+                elif not message.reference:
+                    await message.reply(f'Mikä viesti? hä?')
+            else:
+                await message.reply(f'Sori, sä et määrää täällä.')
+
+        if cmd == "epäroolita":
+            if await self.check_bot_mod(message.author, message.guild):
+                if message.reference and message.reference.message_id and len(args) > 2:
+                    role = await self.get_role_from_mention(message.guild, args[1])
+                    emoji = args[2].strip()
+                    if not role:
+                        role = await self.get_role_from_mention(message.guild, args[2])
+                        emoji = args[1].strip()
+                    if not role:
+                        await message.reply(f'Ei oo tommosta roolii..')
+                    msg, e = await self.get_message_from_channel_with_id(message.channel.id, message.reference.message_id)
+                    if not msg:
+                        await message.reply(f'Done goofed..')
+                        return False
+                    delet = False
+                    if len(args) > 3 and args[3] == "poista":
+                        delet = True
+                    await self.remove_role_message(delet, msg, role.id, emoji, msg.channel.id)
+                    await message.add_reaction("✅")
+                    await asyncio.sleep(5)
+                    await message.delete()
+                    return True
+                elif not message.reference:
+                    await message.reply(f'Mikä viesti? hä?')
+            else:
+                await message.reply(f'Sori, sä et määrää täällä.')
+
+        if cmd == "haloo" or cmd == "haloo!":
             if len(args) > 2:
+                if args[1] == "puhelimessa":
+                    await self.save_nick(message.author.id, args[2])
+                    await message.reply(f'Haloo {args[2]}! Luurissa luuranki.')
                 if args[1] == "missä" and (args[2] == "reikä?" or args[2] == "reikä"):
                     hole_arg = -1
                     if len(args) > 3 and args[3].is_digit():
@@ -114,19 +264,19 @@ class Bot(discord.Client):
                             hole = int(hole[1:])
                             if hole_arg > 0:
                                 if hole_arg == hole and self.current_hole != hole:
-                                    message.reply(f'Mää luulin että pitäs olla reikä {self.current_hole} mut sanoit että ois {hole_arg} ja sheetistä löyty reikä {hole}... Korjaan tilanteen...')
+                                    await message.reply(f'Mää luulin että pitäs olla reikä {self.current_hole} mut sanoit että ois {hole_arg} ja sheetistä löyty reikä {hole}... Korjaan tilanteen...')
                                     self.current_hole = hole
                                 elif hole_arg == self.current_hole and hole != hole_arg:
-                                    message.reply(f'Sheetistä tullee väärää reikää :(')
+                                    await message.reply(f'Sheetistä tullee väärää reikää :(')
                             elif self.current_hole != hole:
-                                message.reply(f'No tota.. Sheetistä tulee reikä #{hole} ja mun mielestä pitäs olla #{self.current_hole}')
+                                await message.reply(f'No tota.. Sheetistä tulee reikä #{hole} ja mun mielestä pitäs olla #{self.current_hole}')
                             if self.current_hole == hole and (hole_arg == -1 or hole_arg == hole):
                                 success, created = await self.make_new_thread(title, content)
                                 if success:
                                     if not created:
-                                        message.reply(f'No eiks se oo tää: {self.current_thread.jump_url} ?')
+                                        await message.reply(f'No eiks se oo tää: {self.current_thread.jump_url} ?')
                                     else:
-                                        message.reply(f'💀')
+                                        await message.reply(f'💀')
 
 
         if cmd == "pelikanava":
@@ -179,7 +329,6 @@ class Bot(discord.Client):
 
             await message.reply('Käyttö: \n!ilmoitustaulu lisää TXT_ID (-o TEKSTIN OTSIKKO) -s TEKSTIN SISÄLTÖ\n!ilmoitustaulu pista TXT_ID')
         if cmd == "perttijumis":
-            print("pertti jumis")
             offset = 0
             if len(args) > 1:
                 offset_arg = args[1]
@@ -236,7 +385,6 @@ class Bot(discord.Client):
 
                 elif args[1] == "poista":
                     if len(args) > 2 and args[2].isdigit():
-                        print("poistetaan..")
                         response = await self.delete_on_api("/edit-image/" + args[2], {})
                         if response["success"]:
                             await message.reply("Kuva poistettu... ehkä.")
@@ -247,6 +395,22 @@ class Bot(discord.Client):
                 return True
             await message.reply("pistä perään urli tai 'poista <id>'")
         return False
+
+    async def save_nick(self, author, nick):
+        self.nicks[author] = nick
+        with open('data/nicknames.json', 'w+') as json_data:
+            json.dump(self.nicks, json_data)
+
+    async def get_nick(self, author):
+        if author.id in self.nicks:
+            return self.nicks[author.id]
+        return author.display_name
+
+    def load_nicks(self):
+        if os.path.isfile('data/nicknames.json'):
+            with open('data/nicknames.json', 'r+') as json_data:
+                self.nicks = json.load(json_data)
+
 
     async def can_api(self):
         return self.api_conf and 'API_URL' in self.api_conf
@@ -320,7 +484,7 @@ class Bot(discord.Client):
         if score_msg:
             await message.add_reaction("👏")
             await message.add_reaction("🤔")
-            sender = message.author.display_name
+            sender = await self.get_nick(message.author)
             created = utc_to_local(message.created_at)
             timestamp = "[" + str(created.hour).zfill(2) + ":" + str(created.minute).zfill(2) + "]"
             score_msg = timestamp + sender + ": " + score_msg + " 🤖 Added by luuranki"
@@ -343,33 +507,69 @@ class Bot(discord.Client):
             if not checked:
                 await self.check_if_score_message(msg)
 
+    async def load_role_messages(self):
+        with open('data/rolemessage.json', "r+") as json_data:
+            rolemsgs = json.load(json_data)
+        valid = []
+        changes = False
+        for rm in rolemsgs:
+            ok, delet = await self.check_role_message(rm)
+            if not delet:
+                valid.append(rm)
+            else:
+                changes = True
+        if changes:
+            with open('data/rolemessage.json', "w+") as json_data:
+                json.dump(valid, json_data)
+
+    async def remove_role_checker_entry(self, role, emoji, msg, channel):
+        with open('data/rolemessage.json', "r+") as json_data:
+            rolemsgs = json.load(json_data)
+        valid = []
+        changes = False
+        for rm in rolemsgs:
+            if not (rm["role"] == role and rm["emoji"] == emoji and rm["msg"] == msg and rm["channel"] == channel):
+                valid.append(rm)
+                changes = True
+        if changes:
+            with open('data/rolemessage.json', "w+") as json_data:
+                json.dump(valid, json_data)
+
+
+    async def add_role_checker_entry(self, role, emoji, msg, channel):
+        with open('data/rolemessage.json', "r+") as json_data:
+            rolemsgs = json.load(json_data)
+        rolemsgs.append({"msg": msg, "role": role, "emoji": emoji, "channel": channel})
+        with open('data/rolemessage.json', "w+") as json_data:
+            json.dump(rolemsgs, json_data)
+
     async def check_role_message(self, rm):
         if "msg" in rm and "role" in rm and "channel" in rm and "emoji" in rm:
             msg = None
-            if rm["msg"] in self.role_messages:
-                msg = self.role_messages[rm["msg"]]
-            else:
-                channel = self.get_channel(rm["channel"])
-                try:
-                    msg = await channel.fetch_message(rm["msg"])
-                except discord.NotFound:
-                    return False, True
-                except discord.Forbidden, discord.HTTPException:
-                    return False, False
+            msgs = await self.get_role_message_or_none(rm["msg"])
+            if msgs:
+                for rmc in msgs:
+                    if rmc["emoji"] == rm["emoji"] and rmc["role"] == rm["role"] and rmc["channel_id"] == rm["channel"]:
+                        msg = rmc["msg"]
+                        break
+            if not msg:
+                msg, e = await self.get_message_from_channel_with_id(rm["channel"], rm["msg"])
                 if msg:
-                    self.role_messages[msg.id] = msg
+                    await self.add_role_message_cache(msg, rm["role"], rm["emoji"], rm["channel"])
+                else:
+                    return False, e
             if msg:
                 user_ids = []
                 role = msg.guild.get_role(rm["role"])
                 if not role:
-                    del self.role_messages[msg.id]
+                    await self.remove_role_message_from_cache(rm["msg"], rm["role"], rm["emoji"], rm["channel"])
                     return False, True
                 for reaction in msg.reactions:
                     emoji = None
                     if isinstance(reaction.emoji, str):
                         emoji = reaction.emoji
                     else:
-                        emoji = reaction.emoji.name
+                        emoji = str(reaction.emoji)
                     if rm["emoji"] == emoji:
                         async for user in reaction.users():
                             user_ids.append(user.id)
@@ -416,3 +616,4 @@ def is_float(element) -> bool:
         return True
     except ValueError:
         return False
+
