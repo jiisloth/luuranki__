@@ -410,6 +410,9 @@ class Bot(discord.Client):
         if os.path.isfile('data/nicknames.json'):
             with open('data/nicknames.json', 'r+') as json_data:
                 self.nicks = json.load(json_data)
+        else:
+            with open('data/nicknames.json', 'w+') as json_data:
+                json.dump({}, json_data)
 
 
     async def can_api(self):
@@ -508,6 +511,10 @@ class Bot(discord.Client):
                 await self.check_if_score_message(msg)
 
     async def load_role_messages(self):
+        if not os.path.isfile('data/rolemessage.json'):
+            with open('data/rolemessage.json', "w+") as json_data:
+                json.dump([], json_data)
+
         with open('data/rolemessage.json', "r+") as json_data:
             rolemsgs = json.load(json_data)
         valid = []
@@ -539,9 +546,15 @@ class Bot(discord.Client):
     async def add_role_checker_entry(self, role, emoji, msg, channel):
         with open('data/rolemessage.json', "r+") as json_data:
             rolemsgs = json.load(json_data)
-        rolemsgs.append({"msg": msg, "role": role, "emoji": emoji, "channel": channel})
-        with open('data/rolemessage.json', "w+") as json_data:
-            json.dump(rolemsgs, json_data)
+        found = False
+        for rm in rolemsgs:
+            if rm["role"] == role and rm["emoji"] == emoji and rm["msg"] == msg and rm["channel"] == channel:
+                found = True
+                break
+        if not found:
+            rolemsgs.append({"msg": msg, "role": role, "emoji": emoji, "channel": channel})
+            with open('data/rolemessage.json', "w+") as json_data:
+                json.dump(rolemsgs, json_data)
 
     async def check_role_message(self, rm):
         if "msg" in rm and "role" in rm and "channel" in rm and "emoji" in rm:
