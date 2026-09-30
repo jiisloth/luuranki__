@@ -26,7 +26,7 @@ class Gsheets:
         return result
 
     def add_new_minigolf_line(self, content, current_hole, sender):
-        sheet = self.client.open("Daily Minigolf Challenge").worksheet("SubmitScore")
+        sheet = self.client.open("Daily Minigölf Challenge").worksheet("SubmitScore")
         res = sheet.get("D2:G1000")
         for r in range(len(res)):
             row = res[r]
