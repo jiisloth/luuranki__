@@ -8,7 +8,7 @@ local_tz = "Europe/Helsinki"
 
 
 def get_settings(gsheets):
-    data = gsheets.fetchfromsheets("Daily Minigolf Challenge", "Settings")
+    data = gsheets.fetchfromsheets("Daily Minigölf Challenge", "Settings")
     settings = {}
     raw_settings = {}
     for row in data:
