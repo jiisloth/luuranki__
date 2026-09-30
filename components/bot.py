@@ -5,6 +5,9 @@ import datetime
 import random
 import discord
 import os.path
+from typing import Union, Type, Callable, Coroutine, Any, Sequence
+import pytz
+from discord import TextChannel, Thread, Message, Role
 
 
 from components.minigolf import utc_to_local, get_score_message
@@ -68,6 +71,9 @@ class Bot(discord.Client):
                 if pending_channel == "game_channel":
                     self.game_channel = channel
                     v_print(1, "got game channel from conf!")
+                if pending_channel == "bulletin_board":
+                    self.game_channel = channel
+
             if channel.type == discord.ChannelType.text:
                 self.channels[channel.name] = channel
 
@@ -612,18 +618,117 @@ class Bot(discord.Client):
                     await self.check_message_history()
                     return True, False
             self.current_thread = await self.game_channel.create_thread(name=title, type=discord.ChannelType.public_thread)
+            mentions_fix = await self.parse_mentions(content, self.game_channel.guild.roles)
+            await self.current_thread.send(mentions_fix)
+            return True, True
+        return False, False
+
+    async def parse_mentions(self, content:str, roles:Sequence[Role]):
+        for role in roles:
+            if role.mentionable:
+                content = content.replace("@" + role.name, role.mention)
+        return content
+
+    async def get_thread_with_name(self, channel:TextChannel, thread_name:str):
+        if channel:
+            threads = channel.threads
+            for t in range(len(threads)):
+                thread = threads[t]
+                if thread.name == thread_name:
+                    return thread
+        return None
+
+    async def loop_over_message_history(self, channel:Union[TextChannel, Thread], func:Callable[[Message], Coroutine[Any, Any, dict]], gather=False, limit=200, oldest_first=True):
+        results = []
+        async for msg in channel.history(limit=limit, oldest_first=oldest_first):
+            result = func(msg)
+            if gather and not ("gather" in result and result["gater"]):
+                if "return" in result:
+                    results.append(result["return"])
+            if "halt" in result and result["halt"]:
+                if gather:
+                    return results
+                elif "return" in result:
+                    return result["return"]
+                return None
+        return None
+
+    async def create_thread(self, channel:TextChannel, title:str, message:str="") -> Thread:
+        thread = await channel.create_thread(name=title, type=discord.ChannelType.public_thread)
+        if message != "":
+            await self.current_thread.send(message)
+        return thread
+
+
+
+
+
+
+class Minigolf:
+    current_thread:Union[Thread, None] = None
+    game_channel:TextChannel = None
+    played_today = []
+    bot:Bot = None
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    async def make_daily_thread(self, title:str, content:str):
+        self.played_today = []
+        if self.game_channel:
+            self.current_thread = await self.bot.get_thread_with_name(self.game_channel, title)
+            if self.current_thread:
+                await self.bot.loop_over_message_history(self.current_thread, self.check_if_marked)
+                return True, False
+            self.current_thread = await self.game_channel.create_thread(name=title, type=discord.ChannelType.public_thread)
             mentions_fix = await self.make_mentions(content)
             await self.current_thread.send(mentions_fix)
             return True, True
         return False, False
 
-    async def make_mentions(self, content:str):
-        roles = self.game_channel.guild.roles
-        for role in roles:
-            if role.mentionable:
-                n = "@" + role.name
-                content = content.replace(n, role.mention)
-        return content
+    async def check_if_marked(self, msg:Message):
+        checked = False
+        for r in msg.reactions:
+            if r.me or (isinstance(r.emoji, str) and (r.emoji == "❎" or r.emoji == "✅")):
+                checked = True
+                break
+        if not checked:
+            await self.check_if_score_message(msg)
+        return {"halt": False}
+
+    async def check_if_score_message(self, message):
+        score_msg = await self.parse_score_message(message.content)
+        if score_msg:
+            await message.add_reaction("👏")
+            await message.add_reaction("🤔")
+            sender = await self.bot.get_nick(message.author)
+            created = utc_to_local(message.created_at)
+            timestamp = "[" + str(created.hour).zfill(2) + ":" + str(created.minute).zfill(2) + "]"
+            score_msg = timestamp + sender + ": " + score_msg + " 🤖 Added by luuranki"
+            res = self.gsheets.add_new_minigolf_line(score_msg, self.current_hole, sender)
+            await message.remove_reaction("🤔", self.user)
+            if res:
+                await message.add_reaction("✅")
+            else:
+                await message.add_reaction("❎")
+                await asyncio.sleep(5)
+                await message.add_reaction("💀")
+
+    async def parse_score_message(self, msg):
+        lines = msg.split("\n")
+        for l in range(len(lines)):
+            words = lines[l].split(" ")
+            if "putt.day" in words:
+                start = words.index("putt.day")
+                if len(words) - start >= 4:
+                    if "⛳" in words:
+                        if words.index("⛳") == start + 2:
+                            if len(words[start + 3].split("/")) == 2:
+                                return " ".join(words[start:start + 4])
+                print("putt.day but not a score message?")
+                print(words)
+        return None
+
 
 def is_float(element) -> bool:
     #If you expect None to be passed:
@@ -635,3 +740,8 @@ def is_float(element) -> bool:
     except ValueError:
         return False
 
+def utc_to_local(utc_dt):
+    return utc_dt.replace(tzinfo=datetime.timezone.utc).astimezone(tz=pytz.timezone(local_tz))
+
+def current_time_in_tz():
+    return utc_to_local(datetime.datetime.now(datetime.timezone.utc))
