@@ -491,6 +491,7 @@ class Bot(discord.Client):
             created = utc_to_local(message.created_at)
             timestamp = "[" + str(created.hour).zfill(2) + ":" + str(created.minute).zfill(2) + "]"
             score_msg = timestamp + sender + ": " + score_msg + " 🤖 Added by luuranki"
+            print("adding")
             res = self.gsheets.add_new_minigolf_line(score_msg, self.current_hole, sender)
             await message.remove_reaction("🤔", self.user)
             if res:

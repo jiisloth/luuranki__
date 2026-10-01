@@ -51,6 +51,7 @@ async def create_minigolf_loop(bot, gsheets, loc_tz):
         print("raw settings:")
         print(raw_settings)
         return
+    print(settings)
     w = 0
     while True:
         if bot.is_ready:

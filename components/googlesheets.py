@@ -23,11 +23,13 @@ class Gsheets:
     def fetchfromsheets(self, sheetname, tab, range=None):
         sheet = self.client.open(sheetname)
         result = sheet.worksheet(tab).get(range)
+        print(result)
         return result
 
     def add_new_minigolf_line(self, content, current_hole, sender):
         sheet = self.client.open("Daily Minigolf Challenge").worksheet("SubmitScore")
         res = sheet.get("D2:G1000")
+        print(res)
         for r in range(len(res)):
             row = res[r]
             if str(row[0]) == str(current_hole) and sender == row[3]:
