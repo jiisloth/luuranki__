@@ -503,6 +503,7 @@ class Bot(discord.Client):
 
     async def check_message_history(self):
         async for msg in self.current_thread.history(limit=200, oldest_first=True):
+            print(msg.content)
             checked = False
             for r in msg.reactions:
                 if r.me or (isinstance(r.emoji, str) and (r.emoji == "❎" or r.emoji == "✅")):
@@ -601,10 +602,13 @@ class Bot(discord.Client):
         self.played = []
         if self.game_channel:
             threads = self.game_channel.threads
+            print("got threads", len(threads))
             for t in range(len(threads)):
                 thread = threads[t]
+                print(thread.name)
                 if thread.name == title:
                     self.current_thread = thread
+                    print("Found existing thread..")
                     await self.check_message_history()
                     return True, False
             self.current_thread = await self.game_channel.create_thread(name=title, type=discord.ChannelType.public_thread)
