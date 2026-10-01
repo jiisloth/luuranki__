@@ -73,7 +73,4 @@ async def main():
 
 
 if __name__ == '__main__':
-
-    #p = requests.get("http://127.0.0.1:5000/keyvalue/perttiStuck")
-    #print(p.json())
     asyncio.run(main())

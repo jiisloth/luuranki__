@@ -8,7 +8,7 @@ import os.path
 
 
 from components.minigolf import utc_to_local, get_score_message
-
+from components.verbosity import v_print
 
 local_tz = "Europe/Helsinki"
 
@@ -55,7 +55,7 @@ class Bot(discord.Client):
 
 
     async def on_ready(self):
-        print(f'Logged on as {self.user}!')
+        v_print(0, f'Logged on as {self.user}!')
         await self.get_channel_ids()
         await self.load_role_messages()
         self.is_ready = True
@@ -67,7 +67,7 @@ class Bot(discord.Client):
                 pending_channel = self.pending_channel_ids[str(channel.id)]
                 if pending_channel == "game_channel":
                     self.game_channel = channel
-                    print("got game channel from conf!")
+                    v_print(1, "got game channel from conf!")
             if channel.type == discord.ChannelType.text:
                 self.channels[channel.name] = channel
 
@@ -75,6 +75,7 @@ class Bot(discord.Client):
     async def on_message(self, message):
         if message.author.id == self.user.id:
             return
+        v_print(4, message.content)
         if message.content.lower() == "haloo":
             if random.random() > 0.5:
                 await message.reply("haloo?")
@@ -171,7 +172,7 @@ class Bot(discord.Client):
             if user.get_role(role.id):
                 return True
             return False
-        print("No such role in guild: ", role_s)
+        v_print(1, "No such role in guild: ", role_s)
         return False
 
     async def get_role_from_mention(self, guild, mention):
@@ -396,14 +397,14 @@ class Bot(discord.Client):
             await message.reply("pistä perään urli tai 'poista <id>'")
         return False
 
-    async def save_nick(self, author, nick):
-        self.nicks[author] = nick
+    async def save_nick(self, author_id, nick):
+        self.nicks[str(author_id)] = nick
         with open('data/nicknames.json', 'w+') as json_data:
             json.dump(self.nicks, json_data)
 
     async def get_nick(self, author):
-        if author.id in self.nicks:
-            return self.nicks[author.id]
+        if str(author.id) in self.nicks:
+            return self.nicks[str(author.id)]
         return author.display_name
 
     def load_nicks(self):
@@ -491,7 +492,7 @@ class Bot(discord.Client):
             created = utc_to_local(message.created_at)
             timestamp = "[" + str(created.hour).zfill(2) + ":" + str(created.minute).zfill(2) + "]"
             score_msg = timestamp + sender + ": " + score_msg + " 🤖 Added by luuranki"
-            print("adding")
+            v_print(3, "adding score")
             res = self.gsheets.add_new_minigolf_line(score_msg, self.current_hole, sender)
             await message.remove_reaction("🤔", self.user)
             if res:
@@ -503,7 +504,6 @@ class Bot(discord.Client):
 
     async def check_message_history(self):
         async for msg in self.current_thread.history(limit=200, oldest_first=True):
-            print(msg.content)
             checked = False
             for r in msg.reactions:
                 if r.me and (isinstance(r.emoji, str) and (r.emoji == "❎" or r.emoji == "✅")):
@@ -602,13 +602,13 @@ class Bot(discord.Client):
         self.played = []
         if self.game_channel:
             threads = self.game_channel.threads
-            print("got threads", len(threads))
+            v_print(2, "got threads", len(threads))
             for t in range(len(threads)):
                 thread = threads[t]
-                print(thread.name)
+                v_print(4, thread.name)
                 if thread.name == title:
                     self.current_thread = thread
-                    print("Found existing thread..")
+                    v_print(1, "Found existing thread..")
                     await self.check_message_history()
                     return True, False
             self.current_thread = await self.game_channel.create_thread(name=title, type=discord.ChannelType.public_thread)

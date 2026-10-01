@@ -5,11 +5,13 @@ from xmlrpc.client import DateTime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+from components.verbosity import v_print
+
 
 class Gsheets:
     def __init__(self):
         if not os.path.isfile("secret.json"):
-            print("secret.json is missing!")
+            v_print(-1, "secret.json is missing!")
             return
         self.client = self._connect("secret.json")
 
@@ -23,13 +25,13 @@ class Gsheets:
     def fetchfromsheets(self, sheetname, tab, range=None):
         sheet = self.client.open(sheetname)
         result = sheet.worksheet(tab).get(range)
-        print(result)
+        v_print(3, result)
         return result
 
     def add_new_minigolf_line(self, content, current_hole, sender):
         sheet = self.client.open("Daily Minigolf Challenge").worksheet("SubmitScore")
         res = sheet.get("D2:G1000")
-        print(res)
+        v_print(3, res)
         for r in range(len(res)):
             row = res[r]
             if len(row) > 3 and str(row[0]) == str(current_hole) and sender == row[3]:

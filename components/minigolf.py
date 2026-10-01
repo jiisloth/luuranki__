@@ -3,6 +3,7 @@ from datetime import datetime, timezone, time, timedelta
 
 import pytz
 
+from components.verbosity import v_print
 
 local_tz = "Europe/Helsinki"
 
@@ -38,7 +39,7 @@ def get_settings(gsheets):
     for x in range(len(required_keys)):
         if not required_keys[x] in settings:
             success = False
-            print("Missing settings key/value for '" + required_keys[x] + "'!")
+            v_print(-1, "Missing settings key/value for '" + required_keys[x] + "'!")
     return success, settings, raw_settings
 
 
@@ -48,20 +49,20 @@ async def create_minigolf_loop(bot, gsheets, loc_tz):
     local_tz = loc_tz
     settings_parsed, settings, raw_settings = get_settings(gsheets)
     if not settings_parsed:
-        print("raw settings:")
-        print(raw_settings)
+        v_print(-1, "raw settings:")
+        v_print(-1, raw_settings)
         return
-    print(settings)
+    v_print(3, settings)
     w = 0
     while True:
         if bot.is_ready:
             if bot.game_channel:
                 break
             if w < 2:
-                print("Bot game channel not setup")
+                v_print(1, "Bot game channel not setup")
                 w = 2
         if w == 0:
-            print("Waiting for bot ready...")
+            v_print(1, "Waiting for bot ready...")
             w = 1
         await asyncio.sleep(2)
     while True:
@@ -70,15 +71,15 @@ async def create_minigolf_loop(bot, gsheets, loc_tz):
         tz = pytz.timezone(local_tz)
         next_hole = tz.localize(datetime(year=sd.year, month=sd.month, day=sd.day, hour=st.hour,minute=st.minute))
         current_hole = 0
-        print("starting loop")
+        v_print(1, "starting loop")
         while current_hole < settings["hole_count"]:
             now = current_time_in_tz()
             if now > next_hole:
                 if not settings["count_weekends"] and next_hole.weekday() > 4:
-                    print("IS WKND!", next_hole, current_time_in_tz())
+                    v_print(1, "IS WKND!", next_hole, current_time_in_tz())
                     next_hole += timedelta(days=1)
                 else:
-                    print("Hole #" + str(current_hole+1).ljust(2, " "), next_hole, current_time_in_tz())
+                    v_print(1, "Hole #" + str(current_hole+1).ljust(2, " "), next_hole, current_time_in_tz())
                     next_hole += timedelta(days=1)
                     current_hole += 1
                     if now < next_hole:
@@ -89,9 +90,9 @@ async def create_minigolf_loop(bot, gsheets, loc_tz):
                             await bot.make_new_thread(ttc[0][0], ttc[1][0])
             if now < next_hole:
                 await asyncio.sleep((next_hole - now).seconds)
-        print("All holes doned!")
+        v_print(1, "All holes doned!")
 
-        print("Waiting for new tourney..")
+        v_print(1, "Waiting for new tourney..")
         waited_days = 0
         while True:
             settings_parsed, settings, raw_settings = get_settings(gsheets)
@@ -118,8 +119,8 @@ async def get_score_message(msg):
                     if words.index("⛳") == start + 2:
                         if len(words[start+3].split("/")) == 2:
                             return " ".join(words[start:start+4])
-            print("putt.day but not a score message?")
-            print(words)
+            v_print(2, "putt.day but not a score message?")
+            v_print(2, words)
     return None
 
 def utc_to_local(utc_dt):
