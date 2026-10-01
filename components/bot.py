@@ -506,7 +506,7 @@ class Bot(discord.Client):
             print(msg.content)
             checked = False
             for r in msg.reactions:
-                if r.me or (isinstance(r.emoji, str) and (r.emoji == "❎" or r.emoji == "✅")):
+                if r.me and (isinstance(r.emoji, str) and (r.emoji == "❎" or r.emoji == "✅")):
                     checked = True
                     break
             if not checked:
