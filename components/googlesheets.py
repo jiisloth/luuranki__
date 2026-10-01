@@ -32,7 +32,7 @@ class Gsheets:
         print(res)
         for r in range(len(res)):
             row = res[r]
-            if str(row[0]) == str(current_hole) and sender == row[3]:
+            if len(row) > 3 and str(row[0]) == str(current_hole) and sender == row[3]:
                 return False
         sheet.update_cell(len(res)+2, 2, content)
         self.set_update_value("Töimisto Visual information system TeleVision", "DataMinigolf", 1, 4)
