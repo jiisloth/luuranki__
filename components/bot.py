@@ -255,7 +255,7 @@ class Bot(discord.Client):
                     hole_arg = -1
                     if len(args) > 3 and args[3].is_digit():
                         hole_arg = int(args[3])
-                    ttc = self.gsheets.fetchfromsheets("Daily Minigolf Challenge", "DiscordThreadCopyPasta", "ThreadTitleContent")
+                    ttc = self.gsheets.fetchfromsheets("Daily Minigolf Challenge", "Outputs", "ThreadTitleContent")
                     if len(ttc) == 2:
                         title = ttc[0][0]
                         content = ttc[1][0]
