@@ -22,11 +22,16 @@ class Gsheets:
         client = gspread.authorize(creds)
         return client
 
-    def fetchfromsheets(self, sheetname, tab, range=None):
-        sheet = self.client.open(sheetname)
-        result = sheet.worksheet(tab).get(range)
+    def fetch_from_sheets(self, sheet_name, tab, cell_range=None):
+        sheet = self.client.open(sheet_name)
+        result = sheet.worksheet(tab).get(cell_range)
         v_print(3, result)
         return result
+
+    def update_sheet_cell(self, sheet_name, tab, row, col, value):
+        sheet = self.client.open(sheet_name).worksheet(tab)
+        sheet.update_cell(row, col, str(value))
+        return
 
     def add_new_minigolf_line(self, content, current_hole, sender):
         sheet = self.client.open("Daily Minigolf Challenge").worksheet("SubmitScore")
@@ -37,11 +42,10 @@ class Gsheets:
             if len(row) > 3 and str(row[0]) == str(current_hole) and sender == row[3]:
                 return False
         sheet.update_cell(len(res)+2, 2, content)
-        self.set_update_value("Töimisto Visual information system TeleVision", "DataMinigolf", 1, 4)
+        self.update_timestamp("Töimisto Visual information system TeleVision", "DataMinigolf", 1, 4)
         return True
 
 
-    def set_update_value(self, sheet, tab, row, col):
-        sheet = self.client.open(sheet).worksheet(tab)
-        sheet.update_cell(row, col, str(datetime.datetime.now()))
-        return True
+    def update_timestamp(self, sheet_name, tab, row, col):
+        self.update_sheet_cell(sheet_name, tab, row, col, datetime.datetime.now())
+        return

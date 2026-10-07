@@ -1,0 +1,11 @@
+{
+  "minigolf": {
+    "sheet_name": "Daily Minigolf Challenge",
+    "tabs": {
+      "submit": "SubmitScore",
+      "settings": "Settings",
+      "output": "Outputs",
+      "gamedays": "Gamedays"
+    }
+  }
+}
