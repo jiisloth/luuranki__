@@ -241,7 +241,7 @@ class Minigolf:
     async def make_daily_spoiler_thread(self, title:str):
         if self.game_channel:
             after = self.settings.utc_to_sheet_time(self.settings.start_date)
-            self.spoiler_thread, is_new = await self.bot.get_or_create_thread(self.game_channel, title, after, False)
+            self.spoiler_thread, is_new = await self.bot.get_or_create_thread(self.game_channel, title, after, False, "Contains spoilers!")
             return is_new
         self.spoiler_thread = None
         return False
