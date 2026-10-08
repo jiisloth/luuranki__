@@ -99,13 +99,13 @@ class MinigolfSettings:
                 if key == "hole_start_time":
                     hm = row[1].strip().split(":")
                     if len(hm) >= 2 and hm[0].isdigit() and hm[1].isdigit():
-                        dt = time(hour=int(hm[0]), minute=int(hm[1]), tzinfo=pytz.timezone(self.sheet_tz))
+                        dt = time(hour=int(hm[0]), minute=int(hm[1]))
                         settings[key] = dt
                         self.hole_start_time = dt
                 if key == "start_date":
                     dd = row[1].strip().split("/")
                     if len(dd) >= 3 and dd[0].isdigit() and dd[1].isdigit() and dd[2].isdigit():
-                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0]), tzinfo=pytz.timezone(self.sheet_tz))
+                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0])).astimezone(tz=pytz.timezone(self.sheet_tz))
                         settings[key] = dt
                         self.start_date = dt
                 if key == "count_weekends":
@@ -150,7 +150,7 @@ class MinigolfSettings:
                     dt = None
                     dd = row[0].strip().split("/")
                     if len(dd) >= 3 and dd[0].isdigit() and dd[1].isdigit() and dd[2].isdigit():
-                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0]), hour=self.hole_start_time.hour, minute=self.hole_start_time.minute, tzinfo=pytz.timezone(self.sheet_tz))
+                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0]), hour=self.hole_start_time.hour, minute=self.hole_start_time.minute).astimezone(tz=pytz.timezone(self.sheet_tz))
                     if dt and hnum:
                         self.gamedays[hnum] = dt
                     else:
@@ -343,7 +343,7 @@ class Minigolf:
         self.looping = False
 
     async def do_daily_actions(self):
-        v_print(1, "Hole #" + str(self.current_hole).ljust(2, " "), self.settings.sheet_time_now())
+        v_print(1, "Hole #" + str(self.current_hole).ljust(2, " "), self.settings.sheet_time_now(), self.settings.get_hole_date(self.current_hole))
         self.sheets.update_timestamp()
         ttm = self.sheets.get_thread_title_and_message()
         if ttm:
@@ -365,90 +365,3 @@ class Minigolf:
                 w = 1
             await asyncio.sleep(2)
         return
-
-
-
-async def old_ass_create_minigolf_loop(bot, gsheets, loc_tz):
-    global local_tz
-    local_tz = loc_tz
-    settings_parsed, settings, raw_settings = old_ass_get_settings(gsheets)
-    if not settings_parsed:
-        v_print(-1, "raw settings:")
-        v_print(-1, raw_settings)
-        return
-    v_print(3, settings)
-    w = 0
-    while True:
-        if bot.is_ready:
-            if bot.game_channel:
-                break
-            if w < 2:
-                v_print(1, "Bot game channel not setup")
-                w = 2
-        if w == 0:
-            v_print(1, "Waiting for bot ready...")
-            w = 1
-        await asyncio.sleep(2)
-    while True:
-        sd:datetime = settings["start_date"]
-        st:datetime = settings["hole_start_time"]
-        tz = pytz.timezone(local_tz)
-        next_hole = tz.localize(datetime(year=sd.year, month=sd.month, day=sd.day, hour=st.hour,minute=st.minute))
-        current_hole = 0
-        v_print(1, "starting loop")
-        while current_hole < settings["hole_count"]:
-            now = current_time_in_tz()
-            if now > next_hole:
-                if not settings["count_weekends"] and next_hole.weekday() > 4:
-                    v_print(1, "IS WKND!", next_hole, current_time_in_tz())
-                    next_hole += timedelta(days=1)
-                else:
-                    v_print(1, "Hole #" + str(current_hole+1).ljust(2, " "), next_hole, current_time_in_tz())
-                    next_hole += timedelta(days=1)
-                    current_hole += 1
-                    if now < next_hole:
-                        gsheets.update_timestamp("Daily Minigolf Challenge", "Outputs", 3, 9)
-                        ttc = gsheets.fetch_from_sheets("Daily Minigolf Challenge", "Outputs", "ThreadTitleContent")
-                        if len(ttc) == 2:
-                            bot.current_hole = current_hole
-                            await bot.make_new_thread(ttc[0][0], ttc[1][0])
-            if now < next_hole:
-                await asyncio.sleep((next_hole - now).seconds)
-        v_print(1, "All holes doned!")
-
-        v_print(1, "Waiting for new tourney..")
-        waited_days = 0
-        while True:
-            settings_parsed, settings, raw_settings = old_ass_get_settings(gsheets)
-            if settings_parsed:
-                if sd != settings["start_date"]:
-                    break
-            if waited_days > 35:
-                #make bot give up if no tournament starts in over month..
-                return
-            await asyncio.sleep(60*60*24)
-            waited_days += 1
-
-
-
-
-async def get_score_message(msg):
-    lines = msg.split("\n")
-    for l in range(len(lines)):
-        words = lines[l].split(" ")
-        if "putt.day" in words:
-            start = words.index("putt.day")
-            if len(words) - start >= 4:
-                if "⛳" in words:
-                    if words.index("⛳") == start + 2:
-                        if len(words[start+3].split("/")) == 2:
-                            return " ".join(words[start:start+4])
-            v_print(2, "putt.day but not a score message?")
-            v_print(2, words)
-    return None
-
-def utc_to_local(utc_dt):
-    return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=pytz.timezone(local_tz))
-
-def current_time_in_tz():
-    return utc_to_local(datetime.now(timezone.utc))
