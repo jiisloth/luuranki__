@@ -300,7 +300,6 @@ class Minigolf:
         self.looping = True
         self.current_hole = 0
         v_print(2, "Starting loop")
-        v_print(2, datetime.now(), datetime.now(timezone.utc), self.settings.sheet_time_now())
         await self.bot.save_task_status("minigolf", "running")
         await self.wait_for_ready()
         day = timedelta(days=1)
@@ -311,6 +310,7 @@ class Minigolf:
             current_date = self.settings.get_hole_date(self.current_hole)
             next_date = self.settings.get_hole_date(self.current_hole+1)
             now = self.settings.sheet_time_now()
+            v_print(2, "Current hole: ", self.current_hole, current_date, " next: ", next_date, " now: ", now)
             if current_date:
                 if current_date < now:
                     if now < current_date + day:
@@ -322,20 +322,19 @@ class Minigolf:
                     next_date = current_date
             if not next_date:
                 if current_date and now < current_date + day:
-                    to_over = (current_date + day) - now
-                    v_print(1, "Last day!")
-                    await asyncio.sleep(to_over.seconds)
+                    to_over = (current_date - now) + day
+                    await sleep_and_tell(to_over, 0, "Last day!")
                 break
             if next_date < now:
                 self.current_hole += 1
                 continue
             to_next:timedelta = next_date - now
             if to_next < day:
-                await asyncio.sleep(to_next.seconds + 1)
+                await sleep_and_tell(to_next, 1, "To tomorrow!")
                 self.current_hole += 1
                 self.is_game_day = True
             else:
-                await asyncio.sleep(day.seconds + 1)
+                await sleep_and_tell(day, 1, "wknd?")
         if self.should_stop:
             return
         await self.bot.save_task_status("minigolf", "ended")
@@ -367,3 +366,10 @@ class Minigolf:
                 w = 1
             await asyncio.sleep(2)
         return
+
+async def sleep_and_tell(td:timedelta, pad=0, s="", v=2):
+    txt = "Sleeping for "
+    if s != "":
+        txt = s + " " + txt
+    v_print(v, txt, td)
+    await asyncio.sleep(td.total_seconds()+pad)
