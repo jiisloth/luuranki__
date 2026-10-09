@@ -167,7 +167,7 @@ class MinigolfSettings:
         return dt.replace(tzinfo=timezone.utc).astimezone(tz=pytz.timezone(self.sheet_tz))
 
     def sheet_time_now(self):
-        return self.utc_to_sheet_time(datetime.now(timezone.utc))
+        return datetime.now(timezone.utc).astimezone(tz=pytz.timezone(self.sheet_tz))
 
     def sheet_time_to_utc(self, dt):
         return dt.replace(tzinfo=pytz.timezone(self.sheet_tz)).astimezone(tz=pytz.timezone('UTC'))
@@ -299,6 +299,7 @@ class Minigolf:
         self.looping = True
         self.current_hole = 0
         v_print(2, "Starting loop")
+        v_print(2, datetime.now(), datetime.now(timezone.utc), self.settings.sheet_time_now())
         await self.bot.save_task_status("minigolf", "running")
         await self.wait_for_ready()
         day = timedelta(days=1)
