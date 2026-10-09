@@ -150,7 +150,8 @@ class MinigolfSettings:
                     dt = None
                     dd = row[0].strip().split("/")
                     if len(dd) >= 3 and dd[0].isdigit() and dd[1].isdigit() and dd[2].isdigit():
-                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0]), hour=self.hole_start_time.hour, minute=self.hole_start_time.minute).astimezone(tz=pytz.timezone(self.sheet_tz))
+                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0])).astimezone(tz=pytz.timezone(self.sheet_tz))
+                        dt += timedelta(hours=self.hole_start_time.hour, minutes=self.hole_start_time.minute)
                     if dt and hnum:
                         self.gamedays[hnum] = dt
                     else:
