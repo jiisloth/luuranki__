@@ -5,6 +5,7 @@ from discord import TextChannel, Thread, Message
 from components.googlesheets import Gsheets
 
 import pytz
+from zoneinfo import ZoneInfo
 from components.verbosity import v_print
 
 if TYPE_CHECKING:
@@ -150,8 +151,7 @@ class MinigolfSettings:
                     dt = None
                     dd = row[0].strip().split("/")
                     if len(dd) >= 3 and dd[0].isdigit() and dd[1].isdigit() and dd[2].isdigit():
-                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0])).astimezone(tz=pytz.timezone(self.sheet_tz))
-                        dt += timedelta(hours=self.hole_start_time.hour, minutes=self.hole_start_time.minute)
+                        dt = datetime(year=int(dd[2]), month=int(dd[1]), day=int(dd[0]), hour=self.hole_start_time.hour, minute=self.hole_start_time.minute, tzinfo=ZoneInfo(key=self.sheet_tz))
                     if dt and hnum:
                         self.gamedays[hnum] = dt
                     else:
@@ -168,7 +168,7 @@ class MinigolfSettings:
         return dt.replace(tzinfo=timezone.utc).astimezone(tz=pytz.timezone(self.sheet_tz))
 
     def sheet_time_now(self):
-        return datetime.now(timezone.utc).astimezone(tz=pytz.timezone(self.sheet_tz))
+        return datetime.now(ZoneInfo(key=self.sheet_tz))
 
     def sheet_time_to_utc(self, dt):
         return dt.replace(tzinfo=pytz.timezone(self.sheet_tz)).astimezone(tz=pytz.timezone('UTC'))
