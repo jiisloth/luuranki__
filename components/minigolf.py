@@ -303,7 +303,7 @@ class Minigolf:
         await self.bot.save_task_status("minigolf", "running")
         await self.wait_for_ready()
         day = timedelta(days=1)
-        while self.current_hole < self.settings.hole_count:
+        while self.current_hole <= self.settings.hole_count:
             v_print(2, self.current_hole)
             if self.should_stop:
                 return
