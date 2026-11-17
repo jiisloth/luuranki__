@@ -1,18 +1,15 @@
+import asyncio
 
 from gevent import monkey
+
 monkey.patch_all()
 import grequests
 import os
-import asyncio
 
-
-import components.googlesheets as gs
 
 import configparser
 
-from components.bot import init_bot
-from components.minigolf import create_minigolf_loop
-from components.roleChecker import create_role_check_loop
+from components.bot import init_bot, Bot
 
 CFG_FILE_NAME = 'config.ini'
 
@@ -21,7 +18,6 @@ required_cfg_values = {
     'API': ['API_URL', 'USER', 'KEY']
 }
 
-local_tz = "Europe/Helsinki"
 
 
 
@@ -57,19 +53,14 @@ def save_config_file(config):
 
 
 async def main():
-    global local_tz
     config = read_config()
-
-
-    if 'GLOBAL' in config and 'timezone' in config['GLOBAL']:
-        local_tz = config['GLOBAL']['timezone']
-
-    gsheets = gs.Gsheets()
-    bot = init_bot(config, gsheets, grequests, local_tz)
-    asyncio.create_task(create_minigolf_loop(bot, gsheets, local_tz))
+    bot:Bot = init_bot(config, grequests)
+    asyncio.create_task(testloop())
     await bot.start(config['BOT']['DISCORD_BOT_TOKEN'])
 
-
+async def testloop(): # lol async too hard. this seems to work tho.
+    while True:
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':

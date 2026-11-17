@@ -1,5 +1,5 @@
 
-VERBOSITY = 0
+VERBOSITY = 2
 
 
 def v_print(v: int, *args):
