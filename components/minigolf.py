@@ -180,7 +180,6 @@ class Minigolf:
     game_thread:Union[Thread, None] = None
     spoiler_thread:Union[Thread, None] = None
     game_channel:Union[TextChannel, None] = None
-    played_today = []
     current_hole = -1
     is_game_day = False
     should_stop = False
@@ -202,7 +201,6 @@ class Minigolf:
         await self.daily_action_loop()
 
     async def make_daily_thread(self, title:str, message:str):
-        self.played_today = []
         if self.game_channel:
             after = self.settings.utc_to_sheet_time(self.settings.start_date)
             self.game_thread, is_new = await self.bot.get_or_create_thread(self.game_channel, title, after, True, message, True)
