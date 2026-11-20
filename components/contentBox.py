@@ -22,8 +22,8 @@ class ContentBox(Editable):
             await message.add_reaction("✖️")
         return True
 
-    async def delete(self, message):
-        response = await self.bot.api.delete_req("/edit-content/" + str(message.id), {"id": str(message.id)})
+    async def delete(self, message_id):
+        response = await self.bot.api.delete_req("/edit-content/" + str(message_id), {"id": str(message_id)})
         return True
 
     async def modify(self, message):

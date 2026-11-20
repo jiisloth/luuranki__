@@ -42,8 +42,8 @@ class Gallery(Editable):
             await message.add_reaction("✖️")
         return True
 
-    async def delete(self, message):
-        response = await self.bot.api.delete_req("/edit-image/" + str(message.id), {"id": message.id})
+    async def delete(self, message_id):
+        response = await self.bot.api.delete_req("/edit-image/" + str(message_id), {"id": message_id})
         return True
 
     async def modify(self, message):

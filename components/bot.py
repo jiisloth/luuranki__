@@ -136,11 +136,11 @@ class Bot(discord.Client):
         if self.gallery:
             await self.gallery.on_message_edited(message)
 
-    async def on_message_delete(self, message):
+    async def on_raw_message_delete(self, delete_event):
         if self.bulletin_board:
-            await self.bulletin_board.on_message_delete(message)
+            await self.bulletin_board.on_message_delete(delete_event)
         if self.gallery:
-            await self.gallery.on_message_delete(message)
+            await self.gallery.on_message_delete(delete_event)
 
 
     async def on_raw_reaction_add(self, reaction):
