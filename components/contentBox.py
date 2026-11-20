@@ -27,6 +27,7 @@ class ContentBox(Editable):
         return True
 
     async def modify(self, message):
+        print("modifying...")
         await message.remove_reaction("✔️", self.bot.user)
         await message.remove_reaction("✖️", self.bot.user)
         data = {
@@ -35,6 +36,7 @@ class ContentBox(Editable):
             "author": message.author.display_name,
             "id": str(message.id)
         }
+        print(message.content)
         response = await self.bot.api.patch_req("/edit-content/" + str(message.id), data)
         if response["success"]:
             await message.add_reaction("✔️")
