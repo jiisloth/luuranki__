@@ -43,7 +43,7 @@ class Gallery(Editable):
         return True
 
     async def delete(self, message):
-        response = await self.bot.api.delete_req("/edit-image/" + str(message.id), {})
+        response = await self.bot.api.delete_req("/edit-image/" + str(message.id), {"id": message.id})
         return True
 
     async def modify(self, message):

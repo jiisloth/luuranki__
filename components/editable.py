@@ -32,7 +32,7 @@ class Editable:
         if await self.check_message(message, True):
             await self.add(message)
 
-    async def on_message_deleted(self, message: Message):
+    async def on_message_delete(self, message: Message):
         if await self.check_message(message):
             await self.delete(message)
 

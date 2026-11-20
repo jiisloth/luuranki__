@@ -121,11 +121,11 @@ class Bot(discord.Client):
 
         if message.content.startswith("!"):
             await self.handle_command(message)
-
-        if self.bulletin_board:
-            await self.bulletin_board.on_new_message(message)
-        if self.gallery:
-            await self.gallery.on_new_message(message)
+        else:
+            if self.bulletin_board:
+                await self.bulletin_board.on_new_message(message)
+            if self.gallery:
+                await self.gallery.on_new_message(message)
 
         if self.minigolf and message.channel.id == self.minigolf.game_thread.id:
             await self.minigolf.check_if_score_message(message)
@@ -134,13 +134,13 @@ class Bot(discord.Client):
         if self.bulletin_board:
             await self.bulletin_board.on_message_edited(message)
         if self.gallery:
-            await self.gallery.on_new_message(message)
+            await self.gallery.on_message_edited(message)
 
-    async def on_message_deleted(self, message):
+    async def on_message_delete(self, message):
         if self.bulletin_board:
-            await self.bulletin_board.on_message_deleted(message)
+            await self.bulletin_board.on_message_delete(message)
         if self.gallery:
-            await self.gallery.on_message_deleted(message)
+            await self.gallery.on_message_delete(message)
 
 
     async def on_raw_reaction_add(self, reaction):
