@@ -8,10 +8,15 @@ import os.path
 from typing import Union, Callable, Coroutine, Any, Sequence
 from discord import TextChannel, Thread, Message, Role
 
+from components.contentBox import ContentBox
+from components.gallery import Gallery
 from components.minigolf import Minigolf, MinigolfSheet
 from components.roleChecker import RoleChecker
 from components.verbosity import v_print
 
+
+special_channel_list = ["minigolf", "bulletin_board", "gallery"]
+special_channel_list_fi = ["minigolf", "ilmoitustaulu", "galleria"]
 
 def init_bot(cfg, grequests):
     intents = discord.Intents.default()
@@ -33,8 +38,8 @@ def sheet_config(key):
 
 class Bot(discord.Client):
     config = None
-    game_channel = None
     pending_channel_ids = {}
+    special_channels = {}
     channels = {}
     api: Api
     super_admin = []
@@ -44,6 +49,8 @@ class Bot(discord.Client):
     nicks = {}
     minigolf:Union[Minigolf, None] = None
     roleChecker:RoleChecker
+    bulletin_board:Union[ContentBox, None] = None
+    gallery:Union[Gallery, None] = None
 
     def configure(self, config, grequests):
         self.roleChecker = RoleChecker(self)
@@ -54,10 +61,31 @@ class Bot(discord.Client):
             self.api = Api(grequests, None)
         for a in range(len(admins)):
             self.super_admin.append(int(admins[a]))
+        self.set_pending_channels(config["CHANNEL"])
         self.pending_channel_ids[config["BOT"]['GAMING_CHANNEL_ID']] = "game_channel"
         self.load_nicks()
         v_print(1, "Bot configured")
 
+
+    def set_pending_channels(self, channel_conf):
+        for k in special_channel_list:
+            if k in channel_conf and channel_conf[k]:
+                self.pending_channel_ids[channel_conf[k]] = k
+
+    async def setup_special_channels(self, channels_to_setup=None):
+        if not channels_to_setup:
+            channels_to_setup = self.special_channels.keys()
+        if self.minigolf and "minigolf" in channels_to_setup and "minigolf" in self.special_channels:
+            self.minigolf.game_channel = self.special_channels["minigolf"]
+        if "bulletin_board" in channels_to_setup and "bulletin_board" in self.special_channels:
+            if not self.bulletin_board:
+                self.bulletin_board = ContentBox(self)
+            await self.bulletin_board.setup(self.special_channels["bulletin_board"])
+
+        if "gallery" in channels_to_setup and "gallery" in self.special_channels:
+            if not self.gallery:
+                self.gallery = Gallery(self)
+            await self.gallery.setup(self.special_channels["gallery"])
 
     async def on_ready(self):
         v_print(0, f'Logged on as {self.user}!')
@@ -72,15 +100,11 @@ class Bot(discord.Client):
         for channel in channels:
             if str(channel.id) in self.pending_channel_ids:
                 pending_channel = self.pending_channel_ids[str(channel.id)]
-                if pending_channel == "game_channel":
-                    self.game_channel = channel
-                    v_print(1, "got game channel from conf!")
-                if pending_channel == "bulletin_board":
-                    self.game_channel = channel
-
+                self.special_channels[pending_channel] = channel
+                v_print(1, f'got {pending_channel} channel from conf!')
+                await self.setup_special_channels([pending_channel])
             if channel.type == discord.ChannelType.text:
                 self.channels[channel.name] = channel
-
 
     async def on_message(self, message):
         if message.author.id == self.user.id:
@@ -99,8 +123,26 @@ class Bot(discord.Client):
         if message.content.startswith("!"):
             await self.handle_command(message)
 
+        if self.bulletin_board:
+            await self.bulletin_board.on_new_message(message)
+        if self.gallery:
+            await self.gallery.on_new_message(message)
+
         if self.minigolf and message.channel.id == self.minigolf.game_thread.id:
             await self.minigolf.check_if_score_message(message)
+
+    async def on_message_edit(self, pre_message, message):
+        if self.bulletin_board:
+            await self.bulletin_board.on_message_edited(message)
+        if self.gallery:
+            await self.gallery.on_new_message(message)
+
+    async def on_message_deleted(self, message):
+        if self.bulletin_board:
+            await self.bulletin_board.on_message_deleted(message)
+        if self.gallery:
+            await self.gallery.on_message_deleted(message)
+
 
     async def on_raw_reaction_add(self, reaction):
         await self.roleChecker.on_raw_reaction_add(reaction)
@@ -158,14 +200,10 @@ class Bot(discord.Client):
             return await self.cmd_unset_roles(args, message)
         if cmd == "haloo" or cmd == "haloo!":
             return await self.cmd_haloo(args, message)
-        if cmd == "pelikanava":
-            return await self.cmd_game_channel(args, message)
-        if cmd == "ilmoitustaulu":
-            return await self.cmd_bulletin_board(args, message)
+        if cmd == "kanava":
+            return await self.cmd_set_channel(args, message)
         if cmd == "perttijumis":
             return await self.cmd_pertti_stuck(args, message)
-        if cmd == "kuva":
-            return await self.cmd_image(args, message)
         return False
 
 
@@ -241,6 +279,24 @@ class Bot(discord.Client):
                 return False
             return True
         return False
+
+    async def cmd_set_channel(self, args, message: Message):
+        if message.author.id in self.super_admin:
+            if len(args) >= 2:
+                ch = args[1]
+
+                if ch in special_channel_list_fi:
+                    ch = special_channel_list[special_channel_list_fi.index(ch)]
+                if ch in special_channel_list:
+                    self.special_channels[ch] = message.channel
+                    await self.setup_special_channels([ch])
+                    await message.add_reaction("☑️")
+                    return True
+            await message.reply(f'Nii mikä kanava...? [{", ".join(special_channel_list_fi)}]')
+        else:
+            await message.reply("Elä laita tämmöstä. Pyyä slottii laittaa.")
+        return False
+
 
     async def cmd_game_channel(self, args, message: Message):
         if message.author.id in self.super_admin:
