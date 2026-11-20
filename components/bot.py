@@ -62,7 +62,6 @@ class Bot(discord.Client):
         for a in range(len(admins)):
             self.super_admin.append(int(admins[a]))
         self.set_pending_channels(config["CHANNEL"])
-        self.pending_channel_ids[config["BOT"]['GAMING_CHANNEL_ID']] = "game_channel"
         self.load_nicks()
         v_print(1, "Bot configured")
 
