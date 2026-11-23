@@ -26,7 +26,7 @@ class Gallery(Editable):
                     break
         return img_url
 
-    async def add(self, message:Message):
+    async def add(self, message:Message, content_override=""):
         img_url = self.get_img_from_message(message)
         if img_url:
             data = {
@@ -46,6 +46,6 @@ class Gallery(Editable):
         response = await self.bot.api.delete_req("/edit-image/" + str(message_id), {"id": message_id})
         return True
 
-    async def modify(self, message):
+    async def modify(self, message, content_override=""):
         await message.add_reaction("✖️")
         return True

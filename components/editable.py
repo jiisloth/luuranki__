@@ -30,24 +30,24 @@ class Editable:
     async def reset_content(self):
         return False
 
-    async def on_new_message(self, message: Message):
+    async def on_new_message(self, message: Message, content_override=""):
         if await self.check_message(message, message.channel.id, True):
-            await self.add(message)
+            await self.add(message, content_override)
 
     async def on_message_delete(self, raw_del_event):
         if await self.check_message(None, raw_del_event.channel_id):
             await self.delete(raw_del_event.message_id)
 
-    async def on_message_edited(self, message: Message):
+    async def on_message_edited(self, message: Message, content_override=""):
         if await self.check_message(message, message.channel.id, True):
             await self.modify(message)
 
 
-    async def add(self, message):
+    async def add(self, message, content_override=""):
         return True
 
     async def delete(self, message):
         return True
 
-    async def modify(self, message):
+    async def modify(self, message, content_override=""):
         return True

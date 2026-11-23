@@ -9,12 +9,14 @@ class ContentBox(Editable):
         self.box = box
 
 
-    async def add(self, message:Message):
+    async def add(self, message:Message, content_override=""):
         data = {
             "box": self.box,
             "text": message.content,
-            "author": message.author.display_name
+            "author": self.bot.get_nick(message.author)
         }
+        if content_override != "":
+            data["text"] = content_override
         response = await self.bot.api.post_req("/edit-content/" + str(message.id), data)
         if response["success"]:
             await message.add_reaction("✔️")
@@ -26,7 +28,7 @@ class ContentBox(Editable):
         response = await self.bot.api.delete_req("/edit-content/" + str(message_id), {"id": str(message_id)})
         return True
 
-    async def modify(self, message):
+    async def modify(self, message, content_override=""):
         print("modifying...")
         await message.remove_reaction("✔️", self.bot.user)
         await message.remove_reaction("✖️", self.bot.user)
@@ -36,7 +38,8 @@ class ContentBox(Editable):
             "author": message.author.display_name,
             "id": str(message.id)
         }
-        print(message.content)
+        if content_override != "":
+            data["text"] = content_override
         response = await self.bot.api.patch_req("/edit-content/" + str(message.id), data)
         if response["success"]:
             await message.add_reaction("✔️")

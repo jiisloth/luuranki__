@@ -6,7 +6,7 @@ import random
 import discord
 import os.path
 from typing import Union, Callable, Coroutine, Any, Sequence
-from discord import TextChannel, Thread, Message, Role
+from discord import TextChannel, Thread, Message, Role, Member
 
 from components.contentBox import ContentBox
 from components.gallery import Gallery
@@ -105,7 +105,7 @@ class Bot(discord.Client):
             if channel.type == discord.ChannelType.text:
                 self.channels[channel.name] = channel
 
-    async def on_message(self, message):
+    async def on_message(self, message:Message):
         if message.author.id == self.user.id:
             return
         v_print(4, message.content)
@@ -123,7 +123,10 @@ class Bot(discord.Client):
             await self.handle_command(message)
         else:
             if self.bulletin_board:
-                await self.bulletin_board.on_new_message(message)
+                parsed_message = ""
+                if message.guild:
+                    parsed_message = self.parse_message_mentions(message.content, message.guild.roles, message.guild.members)
+                await self.bulletin_board.on_new_message(message, parsed_message)
             if self.gallery:
                 await self.gallery.on_new_message(message)
 
@@ -132,7 +135,10 @@ class Bot(discord.Client):
 
     async def on_message_edit(self, pre_message, message):
         if self.bulletin_board:
-            await self.bulletin_board.on_message_edited(message)
+            parsed_message = ""
+            if message.guild:
+                parsed_message = self.parse_message_mentions(message.content, message.guild.roles, message.guild.members)
+            await self.bulletin_board.on_message_edited(message, parsed_message)
         if self.gallery:
             await self.gallery.on_message_edited(message)
 
@@ -325,7 +331,7 @@ class Bot(discord.Client):
         with open('data/nicknames.json', 'w+') as json_data:
             json.dump(self.nicks, json_data)
 
-    async def get_nick(self, author):
+    def get_nick(self, author):
         if str(author.id) in self.nicks:
             return self.nicks[str(author.id)]
         return author.display_name
@@ -339,6 +345,14 @@ class Bot(discord.Client):
                 json.dump({}, json_data)
 
 
+    async def parse_message_mentions(self, content:str, roles:Sequence[Role], members:Sequence[Member]):
+        for role in roles:
+            if role.mentionable:
+                content = content.replace(role.mention, "@" + role.name)
+        for member in members:
+            content = content.replace(member.mention, "@" + self.get_nick(member))
+
+        return content
 
     async def parse_mentions(self, content:str, roles:Sequence[Role]):
         for role in roles:

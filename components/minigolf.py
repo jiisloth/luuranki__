@@ -263,7 +263,7 @@ class Minigolf:
         if score_msg:
             await message.add_reaction("👏")
             await message.add_reaction("🤔")
-            sender = await self.bot.get_nick(message.author)
+            sender = self.bot.get_nick(message.author)
             created = self.settings.utc_to_sheet_time(message.created_at)
             timestamp = "[" + str(created.hour).zfill(2) + ":" + str(created.minute).zfill(2) + "]"
             score_msg = timestamp + sender + ": " + score_msg + " 🤖 Added by luuranki"
