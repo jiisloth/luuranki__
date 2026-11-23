@@ -297,57 +297,6 @@ class Bot(discord.Client):
         return False
 
 
-    async def cmd_game_channel(self, args, message: Message):
-        if message.author.id in self.super_admin:
-            self.game_channel = message.channel
-            if self.minigolf:
-                self.minigolf.game_channel = self.special_channels["minigolf"]
-            await message.add_reaction("☑️")
-            return True
-        else:
-            await message.reply("Elä laita tämmöstä. Pyyä slottii laittaa.")
-        return False
-
-    async def cmd_bulletin_board(self, args, message:Message):
-        if len(args) > 2 and (args[1].lower() == "lisää" or args[1].lower() == "poista"):
-            txt_id = args[2]
-            if txt_id.startswith("-"):
-                await message.reply("Unohditko lisätä ID:n?")
-                return True
-            if args[1] == "lisää":
-                adding = None
-                title = []
-                content = []
-                for arg in args[3:]:
-                    if arg.lower() == "-o":
-                        adding = "o"
-                    elif arg.lower() == "-s":
-                        adding = "s"
-                    else:
-                        if adding == "o":
-                            title.append(arg)
-                        elif adding == "s":
-                            content.append(arg)
-                if len(content) > 0:
-                    response = await self.api.post_req("/edit-content/"+txt_id,
-                                                      {"box": "bulletin_board", "header": " ".join(title), "text": " ".join(content), "author": message.author.display_name})
-                    if response["success"]:
-                        await message.reply("Postasin!")
-                    else:
-                        await message.reply("Ei toimi... " + response["content"])
-                    return True
-                await message.reply("Lissää ny ees jottai sisältöö. -s aaasdsad")
-                return False
-            if args[1] == "poista":
-                response = await self.api.delete_req("/edit-content/"+txt_id, {})
-                if response["success"]:
-                    await message.reply("Poistettu!")
-                else:
-                    await message.reply("Ei toimi... " + response["content"])
-                return True
-        await message.reply('Käyttö: \n!ilmoitustaulu lisää TXT_ID (-o TEKSTIN OTSIKKO) -s TEKSTIN SISÄLTÖ\n!ilmoitustaulu pista TXT_ID')
-        return False
-
     async def cmd_pertti_stuck(self, args, message: Message):
         offset = 0
         if len(args) > 1:
@@ -370,52 +319,6 @@ class Bot(discord.Client):
         else:
             await message.reply("Ei toimi... " + response["content"])
         return True
-
-    async def cmd_image(self, args, message: Message):
-        if len(args) > 1:
-            if args[1] == "lisää":
-                img_url = None
-                for ach in message.attachments:
-                    if ach.content_type.startswith("image"):
-                        img_url = ach.url
-                        break
-                if not img_url:
-                    for emb in message.embeds:
-                        if emb.image and emb.image.proxy_url:
-                            img_url = emb.image.proxy_url
-                        elif emb.image and emb.image.url:
-                            img_url = emb.image.url
-                        elif emb.thumbnail and emb.thumbnail.proxy_url:
-                            img_url = emb.thumbnail.proxy_url
-                        elif emb.thumbnail and emb.thumbnail.url:
-                            img_url = emb.thumbnail.url
-                        elif emb.type == "image" and emb.url:
-                            img_url = emb.url
-                        if img_url:
-                            break
-                if not img_url:
-                    await message.reply("Kilikoli. En löytäny tuosta mittää lisättävää :(")
-                    return True
-                img_url = quote(img_url, safe='/:?&=')
-                response = await self.api.post_req("/edit-image", {"url": img_url, "author": message.author.display_name})
-                if response["success"]:
-                    await message.reply("Kuva lisätty.. ehkä.")
-                else:
-                    await message.reply("Ei toimi... " + response["content"])
-                return True
-
-            elif args[1] == "poista":
-                if len(args) > 2 and args[2].isdigit():
-                    response = await self.api.delete_req("/edit-image/" + args[2], {})
-                    if response["success"]:
-                        await message.reply("Kuva poistettu... ehkä.")
-                    else:
-                        await message.reply("Ei toimi... " + response["content"])
-                    return True
-            await message.reply("Kili koli, en tajuu...")
-            return True
-        await message.reply("pistä perään urli tai 'poista <id>'")
-        return False
 
     async def save_nick(self, author_id, nick):
         self.nicks[str(author_id)] = nick
@@ -506,7 +409,7 @@ class Bot(discord.Client):
         if self.minigolf:
             await self.minigolf.stop()
         minigolf_sheet = MinigolfSheet(sheet_config("minigolf"))
-        self.minigolf = Minigolf(self, minigolf_sheet, self.game_channel)
+        self.minigolf = Minigolf(self, minigolf_sheet, self.special_channels["minigolf"])
         asyncio.create_task(self.minigolf.start())
 
     async def save_task_status(self, task, value):
