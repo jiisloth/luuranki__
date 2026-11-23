@@ -195,9 +195,11 @@ class Minigolf:
         self.game_channel = game_channel
 
     async def stop(self):
+        print("Minigolf stopped")
         self.should_stop = True
 
     async def start(self):
+        print("Minigolf started")
         await self.daily_action_loop()
 
     async def make_daily_thread(self, title:str, message:str):

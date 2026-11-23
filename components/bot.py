@@ -301,7 +301,7 @@ class Bot(discord.Client):
         if message.author.id in self.super_admin:
             self.game_channel = message.channel
             if self.minigolf:
-                self.minigolf.game_channel = self.game_channel
+                self.minigolf.game_channel = self.special_channels["minigolf"]
             await message.add_reaction("☑️")
             return True
         else:
